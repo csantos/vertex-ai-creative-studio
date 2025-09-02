@@ -46,7 +46,6 @@ module "project-services" {
   project_id                  = var.project_id
   disable_services_on_destroy = false
   activate_apis = [
-    "iap.googleapis.com",
     "compute.googleapis.com",
     "certificatemanager.googleapis.com",
     "cloudbuild.googleapis.com",
@@ -61,25 +60,37 @@ module "project-services" {
   ]
 }
 
+# Only enable IAP if 
+resource "google_project_service" "iap" {
+  count = var.allow_public_access ? 0 : 1
+  project = var.project_id
+  service = "iap.googleapis.com"
+  disable_on_destroy = false
+}
+
 /********************************************
 *  Network Infra Resources Section
 *********************************************/
 
 /* There are times when IAP service account is not automatically provisioned, creating explicitly to be sure */
 resource "google_project_service_identity" "iap_sa" {
+  count = var.allow_public_access ? 0 : 1
   provider = google-beta
   project = var.project_id
   service = "iap.googleapis.com"
+  depends_on = [ google_project_service.iap ]
 }
 
 resource "google_iap_web_iam_member" "initial_user_iap_access" {
-  count = var.use_lb && var.initial_user != null ? 1 : 0
+  # This is the IAP used by the Load Balancer so only deploy if LB option is selected
+  count = !var.allow_public_access && var.use_lb && var.initial_user != null ? 1 : 0
   role = "roles/iap.httpsResourceAccessor"
   member = "user:${var.initial_user}"
-  depends_on = [ module.project-services ]
+  depends_on = [ google_project_service.iap ]
 }
 
 resource "google_cloud_run_service_iam_member" "iap_cloudrun_access" {
+  count = var.allow_public_access ? 0 : 1
   location = google_cloud_run_v2_service.creative_studio.location
   service  = google_cloud_run_v2_service.creative_studio.name
   role = "roles/run.invoker"
@@ -106,7 +117,7 @@ module "lb-http" {
         }
       ]
       iap_config = {
-        enable = true
+        enable = !var.allow_public_access
       }
       log_config = {
         enable = true
@@ -163,7 +174,7 @@ resource "google_cloud_run_v2_service" "creative_studio" {
   ingress               = var.use_lb ? "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER" : "INGRESS_TRAFFIC_ALL"
   default_uri_disabled  = var.use_lb
   deletion_protection   = false
-  iap_enabled           = !var.use_lb
+  iap_enabled           = !var.allow_public_access
   invoker_iam_disabled  = !var.use_lb
   launch_stage          = var.use_lb ? "GA" : "BETA"
 
