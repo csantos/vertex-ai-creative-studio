@@ -19,6 +19,7 @@
   - [Deploy using Cloud Run Domain and Allow Public Access (No Authentication)](#deploy-using-cloud-run-domain-and-allow-public-access-no-authentication)
     - [1. Initialize Terraform](#1-initialize-terraform-2)
     - [2. Build and Deploy Container Image](#2-build-and-deploy-container-image-1)
+    - [3. Provide Access to Cloud Storage Bucket](#3-provide-access-to-cloud-storage-bucket)
   - [Deploying to Cloud Shell for Testing](#deploying-to-cloud-shell-for-testing)
 - [Solution Design](#solution-design)
   - [Custom Domain Using Identity Aware Proxy w/Load Balancer](#custom-domain-using-identity-aware-proxy-wload-balancer)
@@ -214,6 +215,7 @@ Make sure your command line is in the folder containing this README (i.e., exper
 ```bash
 cat > terraform.tfvars << EOF
 project_id = "$PROJECT_ID"
+initial_user = "$INITIAL_USER"
 allow_public_access = true
 use_lb = false
 EOF
@@ -233,6 +235,9 @@ A shell script, `build.sh`, is included in this repo that submits a build to Clo
 ```bash
 ./build.sh
 ```
+
+### 3. Provide Access to Cloud Storage Bucket
+You must provide access to the Cloud Storage Bucket to any users of the application. Follow the steps in [Set IAM policies on buckets](https://cloud.google.com/storage/docs/access-control/using-iam-permissions#console) article for instructions on how to set permissions.
 
 Congratulations, you can now navigate to the address provided in the `cloud-run-app-url` Terraform output.
 
